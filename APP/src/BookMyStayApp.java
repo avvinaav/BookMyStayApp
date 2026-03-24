@@ -1,66 +1,79 @@
 import java.util.*;
 
-class InvalidRoomTypeException extends Exception {
-    public InvalidRoomTypeException(String message) {
-        super(message);
+class Reservation {
+    private String guestName;
+    private String roomType;
+    private String roomId;
+
+    public Reservation(String guestName, String roomType, String roomId) {
+        this.guestName = guestName;
+        this.roomType = roomType;
+        this.roomId = roomId;
     }
+
+    public String getGuestName() { return guestName; }
+    public String getRoomType() { return roomType; }
+    public String getRoomId() { return roomId; }
 }
 
-class InsufficientInventoryException extends Exception {
-    public InsufficientInventoryException(String message) {
-        super(message);
-    }
-}
-
-class RoomInventory {
+class BookingSystem {
     private Map<String, Integer> inventory = new HashMap<>();
+    private Map<String, Reservation> activeBookings = new HashMap<>();
+    private Stack<String> cancelledRoomIds = new Stack<>();
 
     public void addRoomType(String type, int count) {
         inventory.put(type, count);
     }
 
-    public void validateAndAllocate(String type) throws InvalidRoomTypeException, InsufficientInventoryException {
-        if (!inventory.containsKey(type)) {
-            throw new InvalidRoomTypeException("Error: Room type '" + type + "' does not exist in our system.");
+    public void confirmBooking(String guestName, String roomType, String resId) {
+        int count = inventory.get(roomType);
+        inventory.put(roomType, count - 1);
+
+        String roomId = roomType.substring(0, 1) + "-101";
+        Reservation res = new Reservation(guestName, roomType, roomId);
+        activeBookings.put(resId, res);
+        System.out.println("Confirmed: " + guestName + " in " + roomId + " (Booking ID: " + resId + ")");
+    }
+
+    public void cancelBooking(String resId) {
+        if (!activeBookings.containsKey(resId)) {
+            System.out.println("Error: Booking ID " + resId + " not found. Cancellation failed.");
+            return;
         }
 
-        int available = inventory.get(type);
-        if (available <= 0) {
-            throw new InsufficientInventoryException("Error: No inventory left for '" + type + "'.");
-        }
+        Reservation res = activeBookings.remove(resId);
+        String roomType = res.getRoomType();
 
-        inventory.put(type, available - 1);
-        System.out.println("Allocation Successful: 1 " + type + " reserved.");
+        inventory.put(roomType, inventory.get(roomType) + 1);
+        cancelledRoomIds.push(res.getRoomId());
+
+        System.out.println("Cancelled: " + res.getGuestName() + "'s stay. Room " + res.getRoomId() + " returned to inventory.");
     }
 
     public void displayStatus() {
-        System.out.println("Current Inventory: " + inventory);
+        System.out.println("\n--- Final System State ---");
+        System.out.println("Inventory: " + inventory);
+        System.out.println("Active Bookings: " + activeBookings.size());
+        System.out.println("Recently Vacated Rooms (Stack): " + cancelledRoomIds);
     }
 }
 
-public class UseCase9ErrorHandlingValidation {
+public class UseCase10BookingCancellation {
     public static void main(String[] args) {
         System.out.println("******************************************");
-        System.out.println("Book My Stay App - Version 9.0");
+        System.out.println("Book My Stay App - Version 10.0");
         System.out.println("******************************************");
 
-        RoomInventory hotel = new RoomInventory();
-        hotel.addRoomType("Single Room", 1);
+        BookingSystem hotel = new BookingSystem();
+        hotel.addRoomType("Single Room", 10);
         hotel.addRoomType("Suite Room", 2);
 
-        String[] testRequests = {"Single Room", "Single Room", "Penthouse", "Suite Room"};
+        hotel.confirmBooking("Alice", "Suite Room", "BK-001");
+        hotel.confirmBooking("Bob", "Single Room", "BK-002");
 
-        for (String request : testRequests) {
-            System.out.println("Processing request for: " + request);
-            try {
-                hotel.validateAndAllocate(request);
-            } catch (InvalidRoomTypeException | InsufficientInventoryException e) {
-                System.err.println(e.getMessage());
-            } catch (Exception e) {
-                System.err.println("An unexpected error occurred: " + e.getMessage());
-            }
-            System.out.println("------------------------------------------");
-        }
+        System.out.println("------------------------------------------");
+        hotel.cancelBooking("BK-001");
+        hotel.cancelBooking("BK-999"); // Test invalid ID
 
         hotel.displayStatus();
         System.out.println("******************************************");
