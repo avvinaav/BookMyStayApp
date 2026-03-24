@@ -1,76 +1,68 @@
 import java.util.*;
 
-class Reservation {
-    private String guestName;
-    private String roomType;
-    private String roomId;
-
-    public Reservation(String guestName, String roomType, String roomId) {
-        this.guestName = guestName;
-        this.roomType = roomType;
-        this.roomId = roomId;
-    }
-
-    public String getGuestName() { return guestName; }
-    public String getRoomType() { return roomType; }
-    public String getRoomId() { return roomId; }
-
-    @Override
-    public String toString() {
-        return String.format("ID: %s | Guest: %-10s | Room: %-12s", roomId, guestName, roomType);
+class InvalidRoomTypeException extends Exception {
+    public InvalidRoomTypeException(String message) {
+        super(message);
     }
 }
 
-class BookingHistory {
-    private List<Reservation> history = new ArrayList<>();
-
-    public void recordBooking(Reservation reservation) {
-        history.add(reservation);
-    }
-
-    public List<Reservation> getFullHistory() {
-        return new ArrayList<>(history);
+class InsufficientInventoryException extends Exception {
+    public InsufficientInventoryException(String message) {
+        super(message);
     }
 }
 
-class ReportingService {
-    public void generateSummaryReport(BookingHistory bookingHistory) {
-        List<Reservation> records = bookingHistory.getFullHistory();
-        System.out.println("\n--- Administrative Booking Report ---");
-        System.out.println("Total Bookings Processed: " + records.size());
+class RoomInventory {
+    private Map<String, Integer> inventory = new HashMap<>();
 
-        if (records.isEmpty()) {
-            System.out.println("No records found.");
-            return;
+    public void addRoomType(String type, int count) {
+        inventory.put(type, count);
+    }
+
+    public void validateAndAllocate(String type) throws InvalidRoomTypeException, InsufficientInventoryException {
+        if (!inventory.containsKey(type)) {
+            throw new InvalidRoomTypeException("Error: Room type '" + type + "' does not exist in our system.");
         }
 
-        Map<String, Integer> roomTypeCount = new HashMap<>();
-        for (Reservation res : records) {
-            System.out.println(res);
-            roomTypeCount.put(res.getRoomType(), roomTypeCount.getOrDefault(res.getRoomType(), 0) + 1);
+        int available = inventory.get(type);
+        if (available <= 0) {
+            throw new InsufficientInventoryException("Error: No inventory left for '" + type + "'.");
         }
 
-        System.out.println("\n--- Popularity by Room Type ---");
-        roomTypeCount.forEach((type, count) -> System.out.println(type + ": " + count + " bookings"));
+        inventory.put(type, available - 1);
+        System.out.println("Allocation Successful: 1 " + type + " reserved.");
+    }
+
+    public void displayStatus() {
+        System.out.println("Current Inventory: " + inventory);
     }
 }
 
-public class UseCase8BookingHistoryReport {
+public class UseCase9ErrorHandlingValidation {
     public static void main(String[] args) {
         System.out.println("******************************************");
-        System.out.println("Book My Stay App - Version 8.0");
+        System.out.println("Book My Stay App - Version 9.0");
         System.out.println("******************************************");
 
-        BookingHistory history = new BookingHistory();
-        ReportingService reporter = new ReportingService();
+        RoomInventory hotel = new RoomInventory();
+        hotel.addRoomType("Single Room", 1);
+        hotel.addRoomType("Suite Room", 2);
 
-        history.recordBooking(new Reservation("Alice", "Suite Room", "S-101"));
-        history.recordBooking(new Reservation("Bob", "Single Room", "SR-101"));
-        history.recordBooking(new Reservation("Charlie", "Single Room", "SR-102"));
-        history.recordBooking(new Reservation("Diana", "Double Room", "DR-101"));
+        String[] testRequests = {"Single Room", "Single Room", "Penthouse", "Suite Room"};
 
-        reporter.generateSummaryReport(history);
+        for (String request : testRequests) {
+            System.out.println("Processing request for: " + request);
+            try {
+                hotel.validateAndAllocate(request);
+            } catch (InvalidRoomTypeException | InsufficientInventoryException e) {
+                System.err.println(e.getMessage());
+            } catch (Exception e) {
+                System.err.println("An unexpected error occurred: " + e.getMessage());
+            }
+            System.out.println("------------------------------------------");
+        }
 
+        hotel.displayStatus();
         System.out.println("******************************************");
     }
 }
