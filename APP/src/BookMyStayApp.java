@@ -3,79 +3,92 @@ import java.util.*;
 class Reservation {
     private String guestName;
     private String roomType;
-    private String roomId;
 
-    public Reservation(String guestName, String roomType, String roomId) {
+    public Reservation(String guestName, String roomType) {
         this.guestName = guestName;
         this.roomType = roomType;
-        this.roomId = roomId;
     }
 
     public String getGuestName() { return guestName; }
     public String getRoomType() { return roomType; }
-    public String getRoomId() { return roomId; }
 }
 
 class BookingSystem {
     private Map<String, Integer> inventory = new HashMap<>();
-    private Map<String, Reservation> activeBookings = new HashMap<>();
-    private Stack<String> cancelledRoomIds = new Stack<>();
+    private List<String> confirmedBookings = new ArrayList<>();
 
     public void addRoomType(String type, int count) {
         inventory.put(type, count);
     }
 
-    public void confirmBooking(String guestName, String roomType, String resId) {
-        int count = inventory.get(roomType);
-        inventory.put(roomType, count - 1);
+    public synchronized boolean processBooking(Reservation res) {
+        String type = res.getRoomType();
+        int available = inventory.getOrDefault(type, 0);
 
-        String roomId = roomType.substring(0, 1) + "-101";
-        Reservation res = new Reservation(guestName, roomType, roomId);
-        activeBookings.put(resId, res);
-        System.out.println("Confirmed: " + guestName + " in " + roomId + " (Booking ID: " + resId + ")");
-    }
+        if (available > 0) {
+            // Simulate processing delay to increase chance of race conditions if not synchronized
+            try { Thread.sleep(10); } catch (InterruptedException e) {}
 
-    public void cancelBooking(String resId) {
-        if (!activeBookings.containsKey(resId)) {
-            System.out.println("Error: Booking ID " + resId + " not found. Cancellation failed.");
-            return;
+            inventory.put(type, available - 1);
+            confirmedBookings.add(res.getGuestName() + " (" + type + ")");
+            return true;
         }
-
-        Reservation res = activeBookings.remove(resId);
-        String roomType = res.getRoomType();
-
-        inventory.put(roomType, inventory.get(roomType) + 1);
-        cancelledRoomIds.push(res.getRoomId());
-
-        System.out.println("Cancelled: " + res.getGuestName() + "'s stay. Room " + res.getRoomId() + " returned to inventory.");
+        return false;
     }
 
-    public void displayStatus() {
-        System.out.println("\n--- Final System State ---");
-        System.out.println("Inventory: " + inventory);
-        System.out.println("Active Bookings: " + activeBookings.size());
-        System.out.println("Recently Vacated Rooms (Stack): " + cancelledRoomIds);
+    public void displayFinalReport() {
+        System.out.println("\n--- Final Booking Report ---");
+        System.out.println("Inventory Remaining: " + inventory);
+        System.out.println("Total Confirmed: " + confirmedBookings.size());
+        System.out.println("Guests: " + confirmedBookings);
     }
 }
 
-public class UseCase10BookingCancellation {
-    public static void main(String[] args) {
+class GuestThread extends Thread {
+    private BookingSystem system;
+    private Reservation reservation;
+
+    public GuestThread(BookingSystem system, String name, String type) {
+        this.system = system;
+        this.reservation = new Reservation(name, type);
+    }
+
+    @Override
+    public void run() {
+        boolean success = system.processBooking(reservation);
+        if (success) {
+            System.out.println("[SUCCESS] " + reservation.getGuestName() + " secured a room.");
+        } else {
+            System.out.println("[FAILED] " + reservation.getGuestName() + " - No rooms available.");
+        }
+    }
+}
+
+public class UseCase11ConcurrentBookingSimulation {
+    public static void main(String[] args) throws InterruptedException {
         System.out.println("******************************************");
-        System.out.println("Book My Stay App - Version 10.0");
+        System.out.println("Book My Stay App - Version 11.0 (Concurrent)");
         System.out.println("******************************************");
 
         BookingSystem hotel = new BookingSystem();
-        hotel.addRoomType("Single Room", 10);
-        hotel.addRoomType("Suite Room", 2);
+        // Only 2 rooms available for 5 eager guests
+        hotel.addRoomType("Suite", 2);
 
-        hotel.confirmBooking("Alice", "Suite Room", "BK-001");
-        hotel.confirmBooking("Bob", "Single Room", "BK-002");
+        Thread[] guests = {
+                new GuestThread(hotel, "Alice", "Suite"),
+                new GuestThread(hotel, "Bob", "Suite"),
+                new GuestThread(hotel, "Charlie", "Suite"),
+                new GuestThread(hotel, "Diana", "Suite"),
+                new GuestThread(hotel, "Edward", "Suite")
+        };
 
-        System.out.println("------------------------------------------");
-        hotel.cancelBooking("BK-001");
-        hotel.cancelBooking("BK-999"); // Test invalid ID
+        // Start all threads "simultaneously"
+        for (Thread t : guests) t.start();
 
-        hotel.displayStatus();
+        // Wait for all threads to finish
+        for (Thread t : guests) t.join();
+
+        hotel.displayFinalReport();
         System.out.println("******************************************");
     }
 }
