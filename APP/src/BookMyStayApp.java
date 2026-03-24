@@ -1,5 +1,7 @@
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 abstract class Room {
     protected String type;
@@ -14,6 +16,10 @@ abstract class Room {
         return type;
     }
 
+    public double getPrice() {
+        return price;
+    }
+
     public abstract void displayDetails();
 }
 
@@ -24,7 +30,7 @@ class SingleRoom extends Room {
 
     @Override
     public void displayDetails() {
-        System.out.println("Type: " + type + " | Price: Rs." + price);
+        System.out.println("Type: " + type + " | Price: Rs." + price + " | Ideal for: Solo Travelers");
     }
 }
 
@@ -35,7 +41,7 @@ class DoubleRoom extends Room {
 
     @Override
     public void displayDetails() {
-        System.out.println("Type: " + type + " | Price: Rs." + price);
+        System.out.println("Type: " + type + " | Price: Rs." + price + " | Ideal for: Couples");
     }
 }
 
@@ -46,51 +52,66 @@ class SuiteRoom extends Room {
 
     @Override
     public void displayDetails() {
-        System.out.println("Type: " + type + " | Price: Rs." + price);
+        System.out.println("Type: " + type + " | Price: Rs." + price + " | Ideal for: Families");
     }
 }
 
 class RoomInventory {
-    private Map<String, Integer> inventory;
-
-    public RoomInventory() {
-        inventory = new HashMap<>();
-    }
+    private Map<String, Integer> inventory = new HashMap<>();
 
     public void addRoomType(String roomType, int count) {
         inventory.put(roomType, count);
     }
 
+    public Map<String, Integer> getAllInventory() {
+        return new HashMap<>(inventory);
+    }
+
     public int getAvailability(String roomType) {
         return inventory.getOrDefault(roomType, 0);
     }
+}
 
-    public void displayInventory() {
-        System.out.println("Current Room Inventory:");
-        for (Map.Entry<String, Integer> entry : inventory.entrySet()) {
-            System.out.println(entry.getKey() + ": " + entry.getValue() + " rooms available");
+class SearchService {
+    public void searchAvailableRooms(RoomInventory inventory, List<Room> roomTemplates) {
+        System.out.println("--- Search Results: Available Rooms ---");
+        boolean found = false;
+
+        for (Room room : roomTemplates) {
+            int count = inventory.getAvailability(room.getType());
+            if (count > 0) {
+                room.displayDetails();
+                System.out.println("Status: " + count + " rooms left");
+                System.out.println("---------------------------------------");
+                found = true;
+            }
+        }
+
+        if (!found) {
+            System.out.println("No rooms currently available.");
         }
     }
 }
 
-public class UseCase3InventorySetup {
+public class UseCase4RoomSearch {
     public static void main(String[] args) {
         System.out.println("******************************************");
-        System.out.println("Book My Stay App - Version 3.0");
+        System.out.println("Book My Stay App - Version 4.0");
         System.out.println("******************************************");
 
         RoomInventory hotelInventory = new RoomInventory();
-
-        hotelInventory.addRoomType("Single Room", 10);
-        hotelInventory.addRoomType("Double Room", 5);
+        hotelInventory.addRoomType("Single Room", 5);
+        hotelInventory.addRoomType("Double Room", 0); // Out of stock
         hotelInventory.addRoomType("Suite Room", 2);
 
-        hotelInventory.displayInventory();
-        System.out.println("******************************************");
+        List<Room> roomTemplates = new ArrayList<>();
+        roomTemplates.add(new SingleRoom());
+        roomTemplates.add(new DoubleRoom());
+        roomTemplates.add(new SuiteRoom());
 
-        String checkType = "Double Room";
-        System.out.println("Checking availability for " + checkType + ": " +
-                hotelInventory.getAvailability(checkType));
+        SearchService searchService = new SearchService();
+        searchService.searchAvailableRooms(hotelInventory, roomTemplates);
+
         System.out.println("******************************************");
     }
 }
